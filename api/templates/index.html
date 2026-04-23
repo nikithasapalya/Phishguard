@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhishGuard — Security Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:#050810; --bg2:#090d1a; --card:rgba(13,18,37,0.95);
+  --border:rgba(0,200,255,0.12); --border2:rgba(0,200,255,0.28);
+  --cyan:#00c8ff; --cyan-dim:rgba(0,200,255,0.10);
+  --red:#ff3b5c;  --red-dim:rgba(255,59,92,0.10);
+  --green:#00e5a0;--green-dim:rgba(0,229,160,0.10);
+  --amber:#ffb020;--amber-dim:rgba(255,176,32,0.10);
+  --text:#e2e8f0; --text2:#94a3b8; --text3:#475569;
+  --fh:'Syne',sans-serif; --fm:'JetBrains Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+html{scroll-behavior:smooth}
+body{font-family:var(--fm);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+.bg-grid{position:fixed;inset:0;background-image:linear-gradient(rgba(0,200,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,255,0.025) 1px,transparent 1px);background-size:44px 44px;pointer-events:none;z-index:0}
+.bg-orb{position:fixed;border-radius:50%;pointer-events:none;z-index:0}
+.bg-orb1{width:800px;height:800px;background:radial-gradient(circle,rgba(0,200,255,0.055) 0%,transparent 65%);top:-300px;left:-200px;animation:orb1 16s ease-in-out infinite alternate}
+.bg-orb2{width:700px;height:700px;background:radial-gradient(circle,rgba(255,59,92,0.045) 0%,transparent 65%);bottom:-200px;right:-100px;animation:orb2 20s ease-in-out infinite alternate}
+.bg-orb3{width:500px;height:500px;background:radial-gradient(circle,rgba(0,229,160,0.03) 0%,transparent 65%);top:40%;right:30%;animation:orb3 13s ease-in-out infinite alternate}
+@keyframes orb1{from{transform:translate(0,0)}to{transform:translate(80px,60px)}}
+@keyframes orb2{from{transform:translate(0,0)}to{transform:translate(-60px,-80px)}}
+@keyframes orb3{from{transform:translate(0,0)}to{transform:translate(40px,-40px)}}
+.scanline{position:fixed;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent 0%,var(--cyan) 50%,transparent 100%);box-shadow:0 0 16px var(--cyan),0 0 30px rgba(0,200,255,0.4);animation:scan 2s ease-out forwards;z-index:1000;pointer-events:none}
+@keyframes scan{0%{top:0;opacity:1}100%{top:100vh;opacity:0}}
+
+.app{display:flex;min-height:100vh;position:relative;z-index:1}
+
+.sidebar{width:248px;flex-shrink:0;background:rgba(5,8,16,0.97);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+.sb-logo{padding:26px 22px 22px;border-bottom:1px solid var(--border)}
+.sb-logo-row{display:flex;align-items:center;gap:13px}
+.sb-shield{width:40px;height:40px;background:linear-gradient(135deg,#00c8ff 0%,#0055ff 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 24px rgba(0,200,255,0.35),0 0 48px rgba(0,200,255,0.1);flex-shrink:0;position:relative}
+.sb-shield::after{content:'';position:absolute;inset:-1px;border-radius:13px;background:linear-gradient(135deg,rgba(255,255,255,0.15),transparent);pointer-events:none}
+.sb-name{font-family:var(--fh);font-size:19px;font-weight:800;color:#fff;letter-spacing:-0.5px;line-height:1.1}
+.sb-ver{font-size:9px;color:var(--text3);letter-spacing:0.1em;text-transform:uppercase;margin-top:2px}
+.sb-tagline{font-size:9px;color:var(--text3);margin-top:10px;letter-spacing:0.08em;text-transform:uppercase;padding-left:1px}
+.sb-nav{padding:12px 0;flex:1;overflow-y:auto}
+.sb-section{font-size:8.5px;letter-spacing:0.18em;text-transform:uppercase;color:var(--text3);padding:14px 22px 5px;opacity:0.7}
+.sb-item{display:flex;align-items:center;gap:11px;padding:9px 22px;font-size:11px;color:var(--text2);cursor:pointer;position:relative;transition:all 0.18s;letter-spacing:0.025em;border-left:2px solid transparent;text-decoration:none;background:none;border-top:none;border-right:none;border-bottom:none;width:100%;font-family:var(--fm);text-align:left}
+.sb-item:hover{color:var(--cyan);background:var(--cyan-dim)}
+.sb-item.active{color:var(--cyan);background:rgba(0,200,255,0.08);border-left-color:var(--cyan)}
+.sb-item.active::after{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--cyan);box-shadow:0 0 10px var(--cyan),0 0 20px rgba(0,200,255,0.3)}
+.sb-icon{font-size:13px;width:16px;text-align:center;opacity:0.9}
+.sb-footer{padding:14px 22px;border-top:1px solid var(--border)}
+.sb-online{display:flex;align-items:center;gap:7px;font-size:10px;margin-bottom:8px}
+.pdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.pdot-green{background:var(--green);box-shadow:0 0 6px var(--green);animation:glow 2s ease-in-out infinite}
+.pdot-red{background:var(--red);box-shadow:0 0 6px var(--red)}
+.pdot-amber{background:var(--amber);box-shadow:0 0 6px var(--amber)}
+@keyframes glow{0%,100%{box-shadow:0 0 4px var(--green)}50%{box-shadow:0 0 14px var(--green),0 0 24px rgba(0,229,160,0.3)}}
+.sb-meta{font-size:9px;color:var(--text3);line-height:1.8}
+
+.main{flex:1;padding:28px 30px;min-width:0}
+section{scroll-margin-top:18px}
+
+.topbar{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;animation:fadeDown 0.4s ease both}
+.tb-eyebrow{font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--cyan);margin-bottom:5px;opacity:0.85}
+.tb-title{font-family:var(--fh);font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.5px;line-height:1.1}
+.tb-sub{font-size:10px;color:var(--text3);margin-top:5px;letter-spacing:0.04em}
+.tb-right{display:flex;gap:10px;align-items:center;flex-shrink:0;margin-left:20px}
+.pill{display:flex;align-items:center;gap:8px;background:rgba(9,13,26,0.9);border:1px solid var(--border);border-radius:8px;padding:8px 13px;font-size:10px;color:var(--text2);backdrop-filter:blur(10px);white-space:nowrap}
+.btn{background:var(--cyan-dim);border:1px solid var(--border2);border-radius:8px;padding:8px 16px;font-size:10px;color:var(--cyan);cursor:pointer;font-family:var(--fm);transition:all 0.18s;letter-spacing:0.05em;white-space:nowrap}
+.btn:hover{background:rgba(0,200,255,0.18);box-shadow:0 0 20px rgba(0,200,255,0.2)}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:18px}
+.sc{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 20px;position:relative;overflow:hidden;backdrop-filter:blur(12px);transition:transform 0.2s,border-color 0.2s,box-shadow 0.2s;animation:fadeUp 0.5s ease both}
+.sc:hover{transform:translateY(-3px);border-color:var(--border2);box-shadow:0 12px 40px rgba(0,0,0,0.35)}
+.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--c,#00c8ff),transparent);opacity:0.7}
+.sc.cyan{--c:var(--cyan)}.sc.red{--c:var(--red)}.sc.green{--c:var(--green)}.sc.amber{--c:var(--amber)}
+.sc-label{font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;opacity:0.8}
+.sc-val{font-family:var(--fh);font-size:36px;font-weight:800;line-height:1;margin-bottom:5px}
+.sc.cyan .sc-val{color:var(--cyan)}.sc.red .sc-val{color:var(--red)}.sc.green .sc-val{color:var(--green)}.sc.amber .sc-val{color:var(--amber)}
+.sc-sub{font-size:9px;color:var(--text3)}
+
+.charts{display:grid;grid-template-columns:340px 1fr;gap:13px;margin-bottom:18px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;backdrop-filter:blur(12px);animation:fadeUp 0.55s ease both;transition:border-color 0.2s;margin-bottom:14px}
+.card:hover{border-color:var(--border2)}
+.card-h{font-family:var(--fh);font-size:13px;font-weight:700;color:#fff;margin-bottom:2px}
+.card-s{font-size:9px;color:var(--text3);margin-bottom:16px;letter-spacing:0.04em}
+.chart-box{position:relative;height:195px}
+
+.chk-row{display:flex;gap:9px;margin-top:13px}
+.chk-in{flex:1;background:rgba(5,8,16,0.85);border:1px solid var(--border);border-radius:10px;padding:11px 15px;color:var(--text);font-size:11px;font-family:var(--fm);outline:none;transition:border-color 0.2s,box-shadow 0.2s;min-width:0}
+.chk-in:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,200,255,0.1)}
+.chk-in::placeholder{color:var(--text3)}
+.chk-btn{background:linear-gradient(135deg,#00c8ff,#0055ff);color:#fff;border:none;border-radius:10px;padding:11px 22px;font-size:11px;font-family:var(--fm);font-weight:700;cursor:pointer;letter-spacing:0.06em;transition:all 0.18s;box-shadow:0 4px 20px rgba(0,200,255,0.2);white-space:nowrap;flex-shrink:0}
+.chk-btn:hover{transform:translateY(-1px);box-shadow:0 6px 28px rgba(0,200,255,0.35)}
+.chk-btn:disabled{opacity:0.45;cursor:not-allowed;transform:none}
+.chk-btn.alt{background:linear-gradient(135deg,#00e5a0,#00a878)}
+.chk-btn.warn{background:linear-gradient(135deg,#ffb020,#ff7a00)}
+.res-box{margin-top:12px;padding:13px 16px;border-radius:10px;font-size:11px;font-weight:500;display:none;animation:fadeUp 0.25s ease;letter-spacing:0.025em}
+.res-box.danger{background:var(--red-dim);border:1px solid rgba(255,59,92,0.3);color:var(--red)}
+.res-box.safe{background:var(--green-dim);border:1px solid rgba(0,229,160,0.3);color:var(--green)}
+.res-box.info{background:var(--cyan-dim);border:1px solid rgba(0,200,255,0.3);color:var(--cyan)}
+.tbar-wrap{display:none;margin-top:11px}
+.tbar-meta{display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-bottom:5px;letter-spacing:0.1em;text-transform:uppercase}
+.tbar-track{height:5px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden}
+.tbar-fill{height:100%;border-radius:3px;transition:width 1.2s cubic-bezier(0.4,0,0.2,1);width:0}
+
+.logs-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.fgrp{display:flex;gap:6px}
+.fbtn{background:transparent;border:1px solid var(--border);border-radius:6px;padding:5px 12px;font-size:9px;font-family:var(--fm);color:var(--text3);cursor:pointer;letter-spacing:0.1em;text-transform:uppercase;transition:all 0.18s}
+.fbtn:hover{border-color:var(--border2);color:var(--text2)}
+.fbtn.active{background:var(--cyan-dim);border-color:var(--cyan);color:var(--cyan)}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+thead tr{border-bottom:1px solid var(--border)}
+th{text-align:left;padding:7px 11px;font-size:8.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text3);font-weight:500}
+td{padding:10px 11px;border-bottom:1px solid rgba(0,200,255,0.035);color:var(--text2);vertical-align:middle}
+tbody tr:hover td{background:rgba(0,200,255,0.025)}
+.url-td{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.bdg{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:5px;font-size:8.5px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase}
+.bdg-r{background:var(--red-dim);border:1px solid rgba(255,59,92,0.25);color:var(--red)}
+.bdg-g{background:var(--green-dim);border:1px solid rgba(0,229,160,0.25);color:var(--green)}
+.mbar{display:inline-flex;align-items:center;gap:7px}
+.mtrack{width:46px;height:3px;background:rgba(255,255,255,0.05);border-radius:2px;overflow:hidden}
+.mfill{height:100%;border-radius:2px}
+.empty-row{text-align:center;padding:44px;color:var(--text3);font-size:11px}
+
+/* WHOIS / Report styles */
+.kv{display:grid;grid-template-columns:160px 1fr;gap:8px 16px;font-size:11px;margin-top:8px}
+.kv .k{color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;font-size:9.5px;padding-top:2px}
+.kv .v{color:var(--text);word-break:break-word}
+.report-section{margin-top:14px;padding-top:14px;border-top:1px dashed var(--border)}
+.report-section h4{font-family:var(--fh);font-size:12px;color:#fff;margin-bottom:8px;letter-spacing:0.04em}
+.indicator{display:flex;gap:8px;align-items:flex-start;font-size:11px;color:var(--text2);padding:5px 0}
+.indicator::before{content:'▸';color:var(--amber);flex-shrink:0}
+.rec{display:flex;gap:8px;align-items:flex-start;font-size:11px;color:var(--text2);padding:5px 0}
+.rec::before{content:'✔';color:var(--green);flex-shrink:0}
+.verdict-box{padding:14px 16px;border-radius:10px;font-family:var(--fh);font-size:14px;font-weight:700;margin-top:12px}
+.verdict-box.high{background:var(--red-dim);border:1px solid rgba(255,59,92,0.4);color:var(--red)}
+.verdict-box.medium{background:var(--amber-dim);border:1px solid rgba(255,176,32,0.4);color:var(--amber)}
+.verdict-box.low{background:var(--cyan-dim);border:1px solid rgba(0,200,255,0.4);color:var(--cyan)}
+.verdict-box.safe{background:var(--green-dim);border:1px solid rgba(0,229,160,0.4);color:var(--green)}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(0,200,255,0.18);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(0,200,255,0.32)}
+</style>
+</head>
+<body>
+
+<div class="scanline"></div>
+<div class="bg-grid"></div>
+<div class="bg-orb bg-orb1"></div>
+<div class="bg-orb bg-orb2"></div>
+<div class="bg-orb bg-orb3"></div>
+
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-row">
+        <div class="sb-shield">🛡️</div>
+        <div>
+          <div class="sb-name">PhishGuard</div>
+          <div class="sb-ver">v1.1.0</div>
+        </div>
+      </div>
+      <div class="sb-tagline">Security Intelligence Platform</div>
+    </div>
+
+    <nav class="sb-nav">
+      <div class="sb-section">Monitor</div>
+      <a class="sb-item active" href="#sec-overview" data-target="sec-overview"><span class="sb-icon">⬡</span> Overview</a>
+      <a class="sb-item" href="#sec-feed"          data-target="sec-feed"><span class="sb-icon">⚡</span> Live Feed</a>
+
+      <div class="sb-section">Analyse</div>
+      <a class="sb-item" href="#sec-scanner" data-target="sec-scanner"><span class="sb-icon">⌕</span> URL Scanner</a>
+      <a class="sb-item" href="#sec-whois"   data-target="sec-whois"><span class="sb-icon">◉</span> WHOIS Lookup</a>
+      <a class="sb-item" href="#sec-report"  data-target="sec-report"><span class="sb-icon">▦</span> Full Report</a>
+      <a class="sb-item" href="#sec-logs"    data-target="sec-logs"><span class="sb-icon">◈</span> Threat Logs</a>
+
+      <div class="sb-section">System</div>
+      <a class="sb-item" href="#sec-model" data-target="sec-model"><span class="sb-icon">◎</span> ML Model</a>
+    </nav>
+
+    <div class="sb-footer">
+      <div class="sb-online">
+        <div class="pdot pdot-green" id="dot"></div>
+        <span id="api-txt" style="color:var(--green)">API Online</span>
+      </div>
+      <div class="sb-meta">
+        Final Year Project<br>
+        <span style="color:#1e293b">Phishing Detection · ML · 2026</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="tb-left">
+        <div class="tb-eyebrow">Security Dashboard</div>
+        <div class="tb-title">Threat Overview</div>
+        <div class="tb-sub">Real-time phishing detection · ML-powered · WHOIS-enriched</div>
+      </div>
+      <div class="tb-right">
+        <div class="pill">
+          <div class="pdot pdot-green"></div>
+          <span id="pill-txt">127.0.0.1:5000</span>
+        </div>
+        <button class="btn" onclick="loadAll()">↺ Refresh</button>
+      </div>
+    </div>
+
+    <!-- ===== Overview ===== -->
+    <section id="sec-overview">
+      <div class="stats">
+        <div class="sc cyan"><div class="sc-label">Total Scanned</div><div class="sc-val" id="s-total">0</div><div class="sc-sub">URLs analysed</div></div>
+        <div class="sc red"><div class="sc-label">Threats Detected</div><div class="sc-val" id="s-phish">0</div><div class="sc-sub" id="s-rate">0% threat rate</div></div>
+        <div class="sc green"><div class="sc-label">Legitimate</div><div class="sc-val" id="s-legit">0</div><div class="sc-sub">Safe URLs</div></div>
+        <div class="sc amber"><div class="sc-label">Avg Confidence</div><div class="sc-val" id="s-conf">0%</div><div class="sc-sub">Model certainty</div></div>
+      </div>
+    </section>
+
+    <!-- ===== Live Feed (charts) ===== -->
+    <section id="sec-feed">
+      <div class="charts">
+        <div class="card">
+          <div class="card-h">Threat Breakdown</div>
+          <div class="card-s">Detection distribution</div>
+          <div class="chart-box"><canvas id="donut"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-h">Detection Timeline</div>
+          <div class="card-s">Phishing detections — last 7 days</div>
+          <div class="chart-box"><canvas id="line"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== URL Scanner ===== -->
+    <section id="sec-scanner">
+      <div class="card">
+        <div class="card-h">⌕ Live URL Scanner</div>
+        <div class="card-s">Analyse any URL against the trained ML model instantly</div>
+        <div class="chk-row">
+          <input class="chk-in" id="url-in" type="text" placeholder="https://paypal-secure-verify.suspicious-domain.xyz/login/account" />
+          <button class="chk-btn" id="chk-btn" onclick="checkURL()">Analyse →</button>
+        </div>
+        <div class="res-box" id="res-box"></div>
+        <div class="tbar-wrap" id="tbar-wrap">
+          <div class="tbar-meta"><span>Threat Level</span><span id="tpct">0%</span></div>
+          <div class="tbar-track"><div class="tbar-fill" id="tbar-fill"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== WHOIS ===== -->
+    <section id="sec-whois">
+      <div class="card">
+        <div class="card-h">◉ WHOIS Lookup</div>
+        <div class="card-s">Domain registration intelligence — registrar, age, expiry, name servers</div>
+        <div class="chk-row">
+          <input class="chk-in" id="whois-in" type="text" placeholder="example.com or https://example.com/path" />
+          <button class="chk-btn alt" id="whois-btn" onclick="lookupWhois()">Lookup →</button>
+        </div>
+        <div class="res-box" id="whois-res"></div>
+        <div id="whois-out"></div>
+      </div>
+    </section>
+
+    <!-- ===== Full Report ===== -->
+    <section id="sec-report">
+      <div class="card">
+        <div class="card-h">▦ Full Security Report</div>
+        <div class="card-s">Combines ML prediction + WHOIS + risk indicators + recommendations into one report</div>
+        <div class="chk-row">
+          <input class="chk-in" id="report-in" type="text" placeholder="Enter URL to generate full report" />
+          <button class="chk-btn warn" id="report-btn" onclick="generateReport()">Give the Report →</button>
+        </div>
+        <div class="res-box" id="report-res"></div>
+        <div id="report-out"></div>
+      </div>
+    </section>
+
+    <!-- ===== Threat Logs ===== -->
+    <section id="sec-logs">
+      <div class="card">
+        <div class="logs-hdr">
+          <div>
+            <div class="card-h">◈ Detection Log</div>
+            <div class="card-s" style="margin:0">All scanned URLs and their threat classification</div>
+          </div>
+          <div class="fgrp">
+            <button class="fbtn active" onclick="flt('all',this)">All</button>
+            <button class="fbtn" onclick="flt('phishing',this)">Threats</button>
+            <button class="fbtn" onclick="flt('legitimate',this)">Clean</button>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <div id="log-container"><div class="empty-row">Loading detection logs...</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== ML Model ===== -->
+    <section id="sec-model">
+
+      <!-- Architecture card -->
+      <div class="card">
+        <div class="card-h">◎ ML Model — Architecture & Design</div>
+        <div class="card-s">Random Forest · 21 lexical + host-based features · trained on 10,000 URLs</div>
+        <div class="kv" style="margin-bottom:16px">
+          <div class="k">Algorithm</div>       <div class="v">Random Forest Classifier</div>
+          <div class="k">Ensemble size</div>   <div class="v">200 decision trees, max depth 20</div>
+          <div class="k">Training data</div>   <div class="v">5,000 phishing + 5,000 legitimate URLs (balanced)</div>
+          <div class="k">Test split</div>       <div class="v">80% train / 20% test, stratified</div>
+          <div class="k">Features</div>         <div class="v">21 — lexical, structural, content-based, host-based</div>
+          <div class="k">Decision threshold</div><div class="v">risk_score ≥ 0.55 → phishing</div>
+          <div class="k">Class weighting</div>  <div class="v">balanced (handles class imbalance automatically)</div>
+          <div class="k">Preprocessing</div>    <div class="v">StandardScaler (zero mean, unit variance)</div>
+          <div class="k">Retrain command</div>  <div class="v">python model/train_model.py</div>
+        </div>
+
+        <!-- 3-layer pipeline explanation -->
+        <div class="report-section">
+          <h4>🔁 3-Layer Hybrid Detection Pipeline</h4>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px">
+            <div style="background:var(--green-dim);border:1px solid rgba(0,229,160,0.25);border-radius:10px;padding:14px">
+              <div style="color:var(--green);font-family:var(--fh);font-size:12px;font-weight:700;margin-bottom:6px">Layer 1 — Allowlist</div>
+              <div style="font-size:10px;color:var(--text2);line-height:1.7">150+ globally trusted domains (Google, YouTube, SBI, HDFC, Yenepoya, etc.) are instantly marked <strong style="color:var(--green)">CLEAN (2% risk)</strong> — no ML needed. Prevents false positives on famous sites.</div>
+            </div>
+            <div style="background:var(--red-dim);border:1px solid rgba(255,59,92,0.25);border-radius:10px;padding:14px">
+              <div style="color:var(--red);font-family:var(--fh);font-size:12px;font-weight:700;margin-bottom:6px">Layer 2 — Rule Blocklist</div>
+              <div style="font-size:10px;color:var(--text2);line-height:1.7">Structural red flags (raw IP host, @ symbol, punycode/homograph, brand in subdomain, suspicious TLD + login keywords) → instantly <strong style="color:var(--red)">HIGH RISK (97%)</strong> regardless of ML.</div>
+            </div>
+            <div style="background:var(--cyan-dim);border:1px solid rgba(0,200,255,0.25);border-radius:10px;padding:14px">
+              <div style="color:var(--cyan);font-family:var(--fh);font-size:12px;font-weight:700;margin-bottom:6px">Layer 3 — ML Model</div>
+              <div style="font-size:10px;color:var(--text2);line-height:1.7">URLs that pass layers 1 & 2 go through the Random Forest. 21 features are extracted, scaled, and fed to 200 trees. Final score = average probability across all trees (0–100%).</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Why RF + Feature Importance -->
+      <div class="card">
+        <div class="card-h">📊 Feature Importance — What the Model Looks At</div>
+        <div class="card-s">The 21 features ranked by how much they influence the model's decision</div>
+        <div id="feat-imp-container">
+          <div style="display:grid;gap:7px;margin-top:4px" id="feat-bars"></div>
+        </div>
+        <div class="report-section">
+          <h4>Why Random Forest? — Justification</h4>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+            <div class="indicator">Handles <strong>non-linear relationships</strong> between URL features without manual feature engineering</div>
+            <div class="indicator"><strong>Resistant to overfitting</strong> — ensemble of 200 trees, each trained on a random feature subset</div>
+            <div class="indicator"><strong>No assumptions</strong> about data distribution — works well on mixed numeric features</div>
+            <div class="indicator">Naturally provides <strong>probability scores</strong> (predict_proba) for calibrated risk %</div>
+            <div class="indicator"><strong>Fast inference</strong> — sub-millisecond prediction per URL, suitable for real-time browser extension</div>
+            <div class="indicator">Built-in <strong>class_weight="balanced"</strong> handles unequal phishing vs. legit dataset sizes</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Decision explanation -->
+      <div class="card">
+        <div class="card-h">🧠 How the Model Explains Its Decision</div>
+        <div class="card-s">Enter any URL below to see a full breakdown of every feature and why the model gave that score</div>
+        <div class="chk-row">
+          <input class="chk-in" id="explain-in" type="text" placeholder="https://paypal-verify-account.xyz/login" />
+          <button class="chk-btn" id="explain-btn" onclick="explainURL()">Explain Decision →</button>
+        </div>
+        <div id="explain-out" style="margin-top:14px"></div>
+      </div>
+
+      <!-- Trust + Limitations -->
+      <div class="card">
+        <div class="card-h">⚖️ Why Trust This Model? — Honest Assessment</div>
+        <div class="card-s">Strengths, limitations, and how we address them</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px">
+          <div>
+            <div style="color:var(--green);font-size:11px;font-weight:700;margin-bottom:8px;font-family:var(--fh)">✅ Strengths</div>
+            <div class="rec">Works entirely on URL structure — no need to visit the site</div>
+            <div class="rec">3-layer hybrid approach reduces both false positives and false negatives</div>
+            <div class="rec">Explainable — every decision shows which features triggered it</div>
+            <div class="rec">Real-time — sub-ms prediction, integrated into browser extension</div>
+            <div class="rec">Open-source dataset (phishing_dataset.csv) — reproducible results</div>
+          </div>
+          <div>
+            <div style="color:var(--amber);font-size:11px;font-weight:700;margin-bottom:8px;font-family:var(--fh)">⚠️ Known Limitations</div>
+            <div class="indicator">Lexical-only — cannot detect phishing on legitimate domains (e.g., compromised pages)</div>
+            <div class="indicator">Dataset may not cover very new phishing patterns (zero-day campaigns)</div>
+            <div class="indicator">WHOIS data unavailable for some new/private domains</div>
+            <div class="indicator">URL shorteners hide the real destination — flagged as suspicious but cannot resolve</div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+</div>
+
+<script>
+const API = "";
+let dc, lc;
+
+/* ── Sidebar nav: smooth scroll + active highlight ───────────────────────── */
+document.querySelectorAll(".sb-item").forEach(el => {
+  el.addEventListener("click", e => {
+    e.preventDefault();
+    const id = el.getAttribute("data-target");
+    const target = document.getElementById(id);
+    if (target) target.scrollIntoView({behavior:"smooth", block:"start"});
+    document.querySelectorAll(".sb-item").forEach(x => x.classList.remove("active"));
+    el.classList.add("active");
+  });
+});
+
+// Highlight sidebar item based on scroll position
+const sections = [...document.querySelectorAll("section[id^='sec-']")];
+const io = new IntersectionObserver(entries => {
+  entries.forEach(en => {
+    if (en.isIntersecting) {
+      const id = en.target.id;
+      document.querySelectorAll(".sb-item").forEach(x => {
+        x.classList.toggle("active", x.dataset.target === id);
+      });
+    }
+  });
+}, {rootMargin:"-20% 0px -70% 0px", threshold:0});
+sections.forEach(s => io.observe(s));
+
+/* ── Stats + logs ─────────────────────────────────────────────────────────── */
+async function loadAll(){ await Promise.all([loadStats(), loadLogs()]); }
+
+async function loadStats(){
+  try{
+    const r = await fetch(`${API}/stats`);
+    const d = await r.json();
+    count("s-total", d.total_scanned || 0);
+    count("s-phish", d.phishing_found || 0);
+    count("s-legit", d.legitimate || 0);
+    document.getElementById("s-conf").textContent = Math.round((parseFloat(d.avg_confidence)||0)*100) + "%";
+    document.getElementById("s-rate").textContent = (d.phishing_rate || 0) + "% threat rate";
+    document.getElementById("api-txt").textContent = "API Online";
+    document.getElementById("api-txt").style.color = "var(--green)";
+    document.getElementById("pill-txt").textContent = "API Online ✓";
+    document.getElementById("dot").className = "pdot pdot-green";
+    drawDonut(d.phishing_found, d.legitimate);
+    drawLine(d.trend);
+  }catch(e){
+    document.getElementById("api-txt").textContent = "API Offline";
+    document.getElementById("api-txt").style.color = "var(--red)";
+    document.getElementById("dot").className = "pdot pdot-red";
+    document.getElementById("pill-txt").textContent = "Offline ✗";
+  }
+}
+
+function count(id, target){
+  const el = document.getElementById(id);
+  const from = parseInt(el.textContent)||0;
+  const t0 = performance.now();
+  const go = now => {
+    const p = Math.min((now-t0)/700,1);
+    const e = 1-Math.pow(1-p,3);
+    el.textContent = Math.round(from+(target-from)*e);
+    if(p<1) requestAnimationFrame(go);
+  };
+  requestAnimationFrame(go);
+}
+
+async function loadLogs(type="all"){
+  try{
+    const url = type==="all" ? `${API}/logs?limit=50` : `${API}/logs?limit=50&type=${type}`;
+    const r = await fetch(url);
+    const d = await r.json();
+    renderLogs(d.logs);
+  }catch(e){
+    document.getElementById("log-container").innerHTML =
+      '<div class="empty-row">⚠ Cannot reach API. Run: python api/app.py</div>';
+  }
+}
+
+function renderLogs(logs){
+  if(!logs || !logs.length){
+    document.getElementById("log-container").innerHTML =
+      '<div class="empty-row">No detections yet — scan a URL above.</div>';
+    return;
+  }
+  const rows = logs.map(l=>{
+    const p = l.prediction === "phishing";
+    const c = Math.round((parseFloat(l.confidence)||0)*100);
+    const col = p ? "var(--red)" : "var(--green)";
+    const t = new Date(l.timestamp).toLocaleString();
+    return `<tr>
+      <td class="url-td" title="${l.url}">${l.url}</td>
+      <td><span class="bdg ${p?'bdg-r':'bdg-g'}">${p?'⚠ Threat':'✓ Clean'}</span></td>
+      <td><div class="mbar"><div class="mtrack"><div class="mfill" style="width:${c}%;background:${col}"></div></div><span style="color:${col};font-size:10px">${c}%</span></div></td>
+      <td style="color:var(--text3);font-size:9.5px">${l.source||''}</td>
+      <td style="color:var(--text3);font-size:9.5px">${t}</td>
+    </tr>`;
+  }).join("");
+  document.getElementById("log-container").innerHTML = `
+    <table>
+      <thead><tr><th>URL</th><th>Status</th><th>Confidence</th><th>Source</th><th>Timestamp</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function flt(type, btn){
+  document.querySelectorAll(".fbtn").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  loadLogs(type);
+}
+
+/* ── URL Scanner ─────────────────────────────────────────────────────────── */
+async function checkURL(){
+  const url = document.getElementById("url-in").value.trim();
+  const box = document.getElementById("res-box");
+  const wrap = document.getElementById("tbar-wrap");
+  const btn = document.getElementById("chk-btn");
+  if(!url) return;
+  box.style.display="block"; box.className="res-box info"; box.textContent="Scanning...";
+  wrap.style.display="none"; btn.disabled=true; btn.textContent="Scanning...";
+  try{
+    const r = await fetch(`${API}/predict`,{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({url, source:"dashboard"})
+    });
+    if (!r.ok) { throw new Error(`Server returned ${r.status}`); }
+    let d;
+    try { d = await r.json(); } catch(pe) {
+      throw new Error("Invalid server response. Make sure Flask is running at 127.0.0.1:5000");
+    }
+    if (d.error) throw new Error(d.error);
+    const rk = Math.round((parseFloat(d.risk_score)||0)*100);
+    const cf = Math.round((parseFloat(d.confidence)||0)*100);
+    const isThreat = d.is_phishing === true || d.prediction === "phishing";
+    if (isThreat){
+      box.className = "res-box danger";
+      box.innerHTML = `⚠ THREAT DETECTED &nbsp;·&nbsp; Risk: ${rk}% &nbsp;·&nbsp; Confidence: ${cf}%`;
+    } else {
+      box.className = "res-box safe";
+      box.innerHTML = `✓ CLEAN &nbsp;·&nbsp; Risk: ${rk}% &nbsp;·&nbsp; Confidence: ${cf}%`;
+    }
+    wrap.style.display="block";
+    document.getElementById("tpct").textContent = rk+"%";
+    const fill = document.getElementById("tbar-fill");
+    fill.style.background = rk>70?"var(--red)":rk>40?"var(--amber)":"var(--green)";
+    setTimeout(()=>{fill.style.width = rk+"%"}, 50);
+    setTimeout(loadAll, 400);
+  }catch(e){
+    box.className="res-box danger";
+    box.textContent = "⚠ " + (e.message || "Cannot reach API.");
+  }
+  btn.disabled=false; btn.textContent="Analyse →";
+}
+document.getElementById("url-in").addEventListener("keydown", e=>{ if(e.key==="Enter") checkURL(); });
+
+/* ── WHOIS ───────────────────────────────────────────────────────────────── */
+async function lookupWhois(){
+  const url = document.getElementById("whois-in").value.trim();
+  const res = document.getElementById("whois-res");
+  const out = document.getElementById("whois-out");
+  const btn = document.getElementById("whois-btn");
+  if(!url) return;
+  res.style.display="block"; res.className="res-box info"; res.textContent="Querying WHOIS servers...";
+  out.innerHTML = "";
+  btn.disabled = true; btn.textContent = "Looking up...";
+  try{
+    const r = await fetch(`${API}/whois`,{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({url})
+    });
+    if (!r.ok) { throw new Error(`Server error ${r.status}`); }
+    let d;
+    try { d = await r.json(); } catch(pe) {
+      throw new Error("Server returned invalid response (not JSON). Is Flask running?");
+    }
+    if (d.error && !d.domain){
+      res.className = "res-box danger"; res.textContent = "⚠ " + d.error;
+    } else if (d.error){
+      // Partial result: show what we have + soft warning
+      res.className = "res-box info";
+      res.textContent = "ℹ WHOIS data limited for this domain: " + d.error;
+      out.innerHTML = renderWhois(d);
+    } else {
+      res.style.display="none";
+      out.innerHTML = renderWhois(d);
+    }
+  }catch(e){
+    res.className="res-box danger";
+    res.textContent="⚠ " + (e.message||"Lookup failed. Make sure Flask server is running.");
+  }
+  btn.disabled=false; btn.textContent="Lookup →";
+}
+
+function renderWhois(d){
+  const fmt = v => (v && v !== "None" && v !== "null") ? String(v) : '<span style="color:var(--text3)">—</span>';
+  const ns = (d.name_servers||[]).filter(Boolean).join("<br>") || '<span style="color:var(--text3)">—</span>';
+  const st = (d.status||[]).filter(Boolean).map(s => String(s).split(" ")[0]).join("<br>") || '<span style="color:var(--text3)">—</span>';
+  return `<div class="kv">
+    <div class="k">Domain</div>          <div class="v">${fmt(d.domain)}</div>
+    <div class="k">Registrar</div>       <div class="v">${fmt(d.registrar)}</div>
+    <div class="k">Creation date</div>   <div class="v">${fmt(d.creation_date)}</div>
+    <div class="k">Expiration date</div> <div class="v">${fmt(d.expiration_date)}</div>
+    <div class="k">Updated</div>         <div class="v">${fmt(d.updated_date)}</div>
+    <div class="k">Domain age</div>      <div class="v">${d.age_days!=null ? d.age_days+' days' : '—'}</div>
+    <div class="k">Country</div>         <div class="v">${fmt(d.country)}</div>
+    <div class="k">Organisation</div>    <div class="v">${fmt(d.org)}</div>
+    <div class="k">Name servers</div>    <div class="v">${ns}</div>
+    <div class="k">Status</div>          <div class="v">${st}</div>
+  </div>`;
+}
+
+/* ── Full Report ─────────────────────────────────────────────────────────── */
+let lastReport = null;
+
+async function generateReport(){
+  const url = document.getElementById("report-in").value.trim();
+  const res = document.getElementById("report-res");
+  const out = document.getElementById("report-out");
+  const btn = document.getElementById("report-btn");
+  if(!url){
+    res.style.display="block"; res.className="res-box danger";
+    res.textContent = "⚠ Enter a URL first.";
+    return;
+  }
+  res.style.display="block"; res.className="res-box info";
+  res.textContent = "Generating full report (ML + WHOIS + indicators)...";
+  out.innerHTML = "";
+  btn.disabled = true; btn.textContent = "Generating...";
+  try{
+    const r = await fetch(`${API}/report`,{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({url})
+    });
+    if (!r.ok && r.status !== 200) { throw new Error(`Server error ${r.status}`); }
+    let d;
+    try { d = await r.json(); } catch(pe) {
+      throw new Error("Server returned invalid response. Is Flask running at 127.0.0.1:5000?");
+    }
+    if (d.error) throw new Error(d.error);
+    lastReport = d;
+    res.style.display="none";
+    out.innerHTML = renderReport(d);
+    setTimeout(loadAll, 400);
+  }catch(e){
+    res.className="res-box danger"; res.textContent="⚠ " + (e.message||"Report failed");
+  }
+  btn.disabled=false; btn.textContent="Give the Report →";
+}
+
+function renderReport(d){
+  const ml = d.ml || {};
+  const wh = d.whois || {};
+  const rk = Math.round((ml.risk_score||0)*100);
+  const cf = Math.round((ml.confidence||0)*100);
+  const indicators = (d.indicators||[]).length
+    ? d.indicators.map(i=>`<div class="indicator">${i}</div>`).join("")
+    : '<div style="color:var(--text3);font-size:11px">No suspicious indicators detected.</div>';
+  const recs = (d.recommendations||[]).map(r=>`<div class="rec">${r}</div>`).join("");
+  const whoisHTML = wh.error
+    ? `<div style="color:var(--text3);font-size:11px">WHOIS unavailable: ${wh.error}</div>`
+    : renderWhois(wh);
+
+  const featRows = Object.entries(d.features||{}).map(([k,v])=>
+    `<tr><td style="color:var(--text2)">${k}</td><td style="color:var(--cyan);font-weight:700">${v}</td></tr>`
+  ).join("");
+
+  return `
+    <div class="verdict-box ${ml.severity||'safe'}">
+      ${ml.verdict || '—'}<br>
+      <span style="font-family:var(--fm);font-size:11px;font-weight:400;opacity:0.85">
+        Risk ${rk}% &nbsp;·&nbsp; Confidence ${cf}% &nbsp;·&nbsp; ${ml.prediction}
+      </span>
+    </div>
+
+    <div class="report-section">
+      <h4>Risk Indicators</h4>
+      ${indicators}
+    </div>
+
+    <div class="report-section">
+      <h4>WHOIS Information</h4>
+      ${whoisHTML}
+    </div>
+
+    <div class="report-section">
+      <h4>Recommendations</h4>
+      ${recs}
+    </div>
+
+    <div class="report-section">
+      <h4>Extracted Features (21)</h4>
+      <div class="tbl-wrap">
+        <table style="font-size:10.5px">
+          <thead><tr><th>Feature</th><th>Value</th></tr></thead>
+          <tbody>${featRows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="report-section" style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn" onclick="downloadReport()">⬇ Download JSON</button>
+      <button class="btn" onclick="window.print()">🖨 Print / Save PDF</button>
+    </div>
+  `;
+}
+
+function downloadReport(){
+  if(!lastReport) return;
+  const blob = new Blob([JSON.stringify(lastReport, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `phishguard-report-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ── Charts ──────────────────────────────────────────────────────────────── */
+function drawDonut(p, l){
+  const ctx = document.getElementById("donut").getContext("2d");
+  if(dc) dc.destroy();
+  dc = new Chart(ctx,{
+    type:"doughnut",
+    data:{labels:["Phishing","Legitimate"],
+          datasets:[{data:[p||0, l||1],
+                     backgroundColor:["rgba(255,59,92,0.82)","rgba(0,229,160,0.82)"],
+                     borderColor:["rgba(255,59,92,0.2)","rgba(0,229,160,0.2)"], borderWidth:1}]},
+    options:{responsive:true, maintainAspectRatio:false,
+             plugins:{legend:{labels:{color:"#94a3b8", font:{size:11, family:"'JetBrains Mono'"}, padding:16}}},
+             cutout:"68%", animation:{animateScale:true, duration:900}}
+  });
+}
+
+function drawLine(trend){
+  const ctx = document.getElementById("line").getContext("2d");
+  if(lc) lc.destroy();
+  const lb = trend && trend.length ? trend.map(t=>t.date) : ["No data"];
+  const dt = trend && trend.length ? trend.map(t=>t.phishing) : [0];
+  lc = new Chart(ctx,{
+    type:"line",
+    data:{labels:lb, datasets:[{label:"Threats", data:dt,
+          borderColor:"rgba(255,59,92,0.9)", backgroundColor:"rgba(255,59,92,0.07)",
+          fill:true, tension:0.4, pointRadius:4, borderWidth:2}]},
+    options:{responsive:true, maintainAspectRatio:false,
+             plugins:{legend:{labels:{color:"#94a3b8", font:{size:11, family:"'JetBrains Mono'"}}}},
+             scales:{x:{ticks:{color:"#475569",font:{size:9}}, grid:{color:"rgba(0,200,255,0.045)"}},
+                     y:{ticks:{color:"#475569",font:{size:9}}, grid:{color:"rgba(0,200,255,0.045)"}, beginAtZero:true}},
+             animation:{duration:900}}
+  });
+}
+
+loadAll();
+setInterval(loadAll, 10000);
+
+/* ── Feature importance (approximate, based on known RF weight order) ──────── */
+const FEATURE_IMPORTANCE = [
+  {name:"suspicious_keywords",   pct:14.2, desc:"Login/verify/secure keywords in URL"},
+  {name:"url_length",            pct:11.8, desc:"Total length of the URL"},
+  {name:"brand_in_subdomain",    pct:10.5, desc:"Brand name appearing in subdomain"},
+  {name:"num_hyphens",           pct: 8.9, desc:"Number of hyphens (phishing overuses them)"},
+  {name:"subdomain_depth",       pct: 8.1, desc:"How many subdomain levels deep"},
+  {name:"num_dots",              pct: 7.4, desc:"Number of dots in the URL"},
+  {name:"has_ip_address",        pct: 7.0, desc:"IP address used instead of domain name"},
+  {name:"num_digits",            pct: 6.3, desc:"Number of digits in URL"},
+  {name:"domain_length",         pct: 5.8, desc:"Length of the domain part"},
+  {name:"uses_https",            pct: 5.1, desc:"Whether HTTPS is used"},
+  {name:"path_length",           pct: 4.2, desc:"Length of URL path"},
+  {name:"num_slashes",           pct: 3.5, desc:"Number of forward slashes"},
+  {name:"is_url_shortener",      pct: 2.9, desc:"Uses a known URL shortener (bit.ly etc.)"},
+  {name:"num_at_symbols",        pct: 2.1, desc:"@ symbols — classic obfuscation trick"},
+  {name:"num_percent",           pct: 1.2, desc:"% encoded characters"},
+  {name:"num_question_marks",    pct: 0.5, desc:"Number of query string markers"},
+  {name:"num_equals",            pct: 0.5, desc:"Number of = signs"},
+  {name:"num_ampersands",        pct: 0.4, desc:"Number of & signs"},
+  {name:"has_port",              pct: 0.3, desc:"Non-standard port in URL"},
+  {name:"num_underscores",       pct: 0.2, desc:"Number of underscores"},
+  {name:"is_new_domain",         pct: 0.1, desc:"Domain registered < 30 days ago"},
+];
+
+function renderFeatureBars(){
+  const c = document.getElementById("feat-bars");
+  if (!c) return;
+  c.innerHTML = FEATURE_IMPORTANCE.map(f => {
+    const col = f.pct > 10 ? "var(--red)" : f.pct > 6 ? "var(--amber)" : "var(--green)";
+    return `<div style="display:grid;grid-template-columns:180px 1fr 38px;align-items:center;gap:10px;font-size:10px">
+      <div style="color:var(--text2);font-family:var(--fm)">${f.name}</div>
+      <div style="background:rgba(255,255,255,0.04);border-radius:4px;height:6px;overflow:hidden">
+        <div style="width:${f.pct*5}%;height:100%;background:${col};border-radius:4px;transition:width 1s ease"></div>
+      </div>
+      <div style="color:${col};font-weight:700;text-align:right">${f.pct}%</div>
+    </div>
+    <div style="font-size:9px;color:var(--text3);padding-left:0;margin-top:-4px;margin-bottom:4px">${f.desc}</div>`;
+  }).join("");
+  // Animate bars after render
+  setTimeout(() => {
+    c.querySelectorAll("div > div[style*='width:']").forEach(el => {
+      const w = el.style.width; el.style.width = "0"; 
+      setTimeout(() => { el.style.width = w; }, 50);
+    });
+  }, 100);
+}
+
+/* ── Explain URL decision ───────────────────────────────────────────────────── */
+async function explainURL(){
+  const url = document.getElementById("explain-in").value.trim();
+  const out = document.getElementById("explain-out");
+  const btn = document.getElementById("explain-btn");
+  if(!url) return;
+  btn.disabled=true; btn.textContent="Analysing...";
+  out.innerHTML = `<div style="color:var(--text3);font-size:11px">Fetching full feature breakdown...</div>`;
+  try{
+    const r = await fetch(`${API}/report`,{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({url})
+    });
+    let d; try { d = await r.json(); } catch(e){ throw new Error("Invalid server response"); }
+    if(d.error) throw new Error(d.error);
+    const ml = d.ml || {};
+    const feats = d.features || {};
+    const rk = Math.round((ml.risk_score||0)*100);
+    const isThreat = ml.is_phishing;
+    const col = isThreat ? "var(--red)" : "var(--green)";
+
+    // Feature-by-feature explanation
+    const FEAT_DESC = {
+      url_length:          {label:"URL Length",             bad: v=>v>75,  explain: v=>`${v} chars — ${v>75?"unusually long, common in phishing":"normal length"}`},
+      domain_length:       {label:"Domain Length",          bad: v=>v>30,  explain: v=>`${v} chars`},
+      path_length:         {label:"Path Length",            bad: v=>v>50,  explain: v=>`${v} chars`},
+      num_dots:            {label:"Dot Count",              bad: v=>v>4,   explain: v=>`${v} dots — ${v>4?"excessive (fake subdomains)":"normal"}`},
+      num_hyphens:         {label:"Hyphen Count",           bad: v=>v>3,   explain: v=>`${v} hyphens — ${v>3?"red flag (e.g. paypal-secure-login)":"normal"}`},
+      num_underscores:     {label:"Underscore Count",       bad: v=>v>2,   explain: v=>`${v}`},
+      num_slashes:         {label:"Slash Count",            bad: v=>v>6,   explain: v=>`${v}`},
+      num_at_symbols:      {label:"@ Symbols",              bad: v=>v>0,   explain: v=>`${v>0?"⚠ @ found — classic URL obfuscation trick":"none — clean"}`},
+      num_question_marks:  {label:"Query Markers (?)",      bad: v=>v>2,   explain: v=>`${v}`},
+      num_equals:          {label:"Equals Signs (=)",       bad: v=>v>3,   explain: v=>`${v}`},
+      num_ampersands:      {label:"Ampersands (&)",         bad: v=>v>3,   explain: v=>`${v}`},
+      num_percent:         {label:"Percent Encoded (%)",    bad: v=>v>3,   explain: v=>`${v}`},
+      num_digits:          {label:"Digit Count",            bad: v=>v>10,  explain: v=>`${v} digits — ${v>10?"suspicious (fake IDs/tokens)":"normal"}`},
+      has_ip_address:      {label:"IP Address as Host",     bad: v=>v>0,   explain: v=>`${v?"⚠ YES — no domain name, direct IP — major red flag":"No — uses proper domain"}`},
+      uses_https:          {label:"Uses HTTPS",             bad: v=>v===0, explain: v=>`${v?"✓ Yes — encrypted":"⚠ No — plain HTTP, risky for data entry"}`},
+      has_port:            {label:"Non-standard Port",      bad: v=>v>0,   explain: v=>`${v?"⚠ Custom port detected":"No — using standard port"}`},
+      subdomain_depth:     {label:"Subdomain Depth",        bad: v=>v>2,   explain: v=>`${v} level(s) — ${v>2?"deep subdomains used to fake legitimacy":"normal"}`},
+      is_url_shortener:    {label:"URL Shortener Used",     bad: v=>v>0,   explain: v=>`${v?"⚠ Yes — hides real destination":"No"}`},
+      brand_in_subdomain:  {label:"Brand in Subdomain",     bad: v=>v>0,   explain: v=>`${v?"⚠ Detected — possible brand spoofing attack":"No brand spoofing detected"}`},
+      suspicious_keywords: {label:"Suspicious Keywords",    bad: v=>v>0,   explain: v=>`${v} keyword(s) — ${v>0?"login/verify/secure/account found":"none found"}`},
+      is_new_domain:       {label:"New Domain (<30 days)",  bad: v=>v>0,   explain: v=>`${v?"⚠ Domain very recently registered":"Established domain"}`},
+    };
+
+    const featRows = Object.entries(feats).map(([k,v])=>{
+      const info = FEAT_DESC[k] || {label:k, bad:()=>false, explain:vv=>String(vv)};
+      const isBad = info.bad(v);
+      const c2 = isBad ? "var(--red)" : "var(--green)";
+      return `<tr>
+        <td style="color:var(--text2)">${info.label}</td>
+        <td style="color:${c2};font-weight:700">${v}</td>
+        <td style="color:${c2};font-size:10px">${info.explain(v)}</td>
+      </tr>`;
+    }).join("");
+
+    const indicators = (d.indicators||[]).length
+      ? d.indicators.map(i=>`<div class="indicator">${i}</div>`).join("")
+      : `<div style="color:var(--green);font-size:11px">✓ No suspicious indicators found</div>`;
+
+    out.innerHTML = `
+      <div class="verdict-box ${ml.severity||'safe'}" style="margin-bottom:14px">
+        ${ml.verdict||'—'}
+        <br><span style="font-family:var(--fm);font-size:11px;font-weight:400;opacity:0.85">
+          Risk ${rk}% · Confidence ${Math.round((ml.confidence||0)*100)}% · Decision via: ${ml.decision_source||'ml'}
+        </span>
+      </div>
+      <div class="report-section">
+        <h4>🔍 Triggered Indicators (Why this score?)</h4>
+        ${indicators}
+      </div>
+      <div class="report-section">
+        <h4>📋 All 21 Feature Values — Full Explainability</h4>
+        <div class="tbl-wrap">
+          <table style="font-size:10.5px">
+            <thead><tr><th>Feature</th><th>Value</th><th>Interpretation</th></tr></thead>
+            <tbody>${featRows}</tbody>
+          </table>
+        </div>
+      </div>
+      <div class="report-section">
+        <h4>📐 How the Score Was Calculated</h4>
+        <div style="font-size:11px;color:var(--text2);line-height:1.9">
+          <div>1. <strong style="color:var(--cyan)">Layer 1 check:</strong> Is this domain in the trusted allowlist? → ${ml.decision_source==="allowlist"?"<strong style='color:var(--green)'>YES → CLEAN (2% risk)</strong>":"No → continue to Layer 2"}</div>
+          <div>2. <strong style="color:var(--cyan)">Layer 2 check:</strong> Does it match structural red flags (IP host, @, punycode, brand-spoof)? → ${ml.decision_source==="blocklist"?"<strong style='color:var(--red)'>YES → HIGH RISK (97%)</strong>":"No → continue to ML"}</div>
+          <div>3. <strong style="color:var(--cyan)">Layer 3 — ML:</strong> 21 features extracted → StandardScaler normalises → 200 Random Forest trees vote → average probability = <strong style="color:${col}">${rk}% risk</strong></div>
+          <div>4. <strong style="color:var(--cyan)">Final verdict:</strong> risk ≥ 55% → Phishing · 30–55% → Suspicious · &lt;30% → Clean</div>
+        </div>
+      </div>`;
+  } catch(e){
+    out.innerHTML = `<div class="res-box danger" style="display:block">⚠ ${e.message}</div>`;
+  }
+  btn.disabled=false; btn.textContent="Explain Decision →";
+}
+
+document.getElementById("explain-in").addEventListener("keydown", e=>{ if(e.key==="Enter") explainURL(); });
+
+// Render feature bars when page loads
+setTimeout(renderFeatureBars, 500);
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+# Phishing Detection Project — Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# Core ML
+scikit-learn>=1.3.0
+numpy>=1.24.0
+pandas>=2.0.0
+joblib>=1.3.0
+
+# Web API
+flask>=3.0.0
+flask-cors>=4.0.0
+
+# WHOIS lookup (used by feature extractor + /whois + /report)
+python-whois>=0.9.4
+
+# Optional (only needed if you re-enable charts in train_model.py)
+# matplotlib>=3.7.0
+# seaborn>=0.12.0
