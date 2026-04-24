@@ -1,7 +1,7 @@
 // background.js — Service Worker
 // Checks every URL the user navigates to against the ML API
 
-const API_URL = "http://127.0.0.1:5000";
+const API_URL = "https://phishguard-6z54.onrender.com";
 const RISK_THRESHOLD = 0.7;  // Flag URLs with phishing risk > 70%
 
 // Skip these domains (whitelisted)

@@ -1,4 +1,4 @@
-const API = "http://127.0.0.1:5000";
+const API = "https://phishguard-6z54.onrender.com";
 
 async function showCurrentPage() {
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
